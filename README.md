@@ -1,7 +1,7 @@
 # improveProtheusTOTVS
 
 ## Problem
-Check in the Protheus system ([TOTVS](https://en.totvs.com)) the monthly workload of all employees based on entries of multiple daily entries and exits in tables that do not provide a summary per day
+Check in the Protheus system ([TOTVS](https://en.totvs.com)) the monthly workload of all employees based on entries of multiple daily entries and exits in tables that do not provide a summary of the hours worked per day
 
 ## Challenge
 Create a new column in the table with the sum of all input and output differences per line (as a bonus, leave the hours of those who worked less than 5:20 hours in red, highlight the table row under the mouse and allow the export of data in XLS format)
@@ -25,7 +25,7 @@ For security reasons, the installation of extensions in the browsers used in the
 ---
 
 ## Problema
-Conferir no sistema Protheus ([TOTVS](https://www.totvs.com)) a carga horária mensal de todos os colaboradores baseado em lançamentos de múltiplas entradas e saídas diárias em tabelas que não fornecem a sumarização por dia
+Conferir no sistema Protheus ([TOTVS](https://www.totvs.com)) a carga horária mensal de todos os colaboradores baseado em lançamentos de múltiplas entradas e saídas diárias em tabelas que não fornecem a sumarização das horas trabalhadas por dia
 
 ## Desafio
 Criar uma nova coluna na tabela com a soma de todas as diferenças de entrada e saída por linha (como bônus deixar em vermelho o horário de quem houver trabalhado menos de 5:20 horas, realçar a linha da tabelas sob o mouse e permitir a exportação dos dados em formato XLS)
