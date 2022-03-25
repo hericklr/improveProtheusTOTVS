@@ -1,3 +1,9 @@
+/*
+
+improveProtheusTOTVS v1.2.0
+https://github.com/hericklr/improveProtheusTOTVS
+
+*/
 (
 
   ()=>
@@ -7,70 +13,281 @@
 
     const
 
-      // 5 HORAS E 20 MINUTOS = (new Date('1970-01-01T05:20:00+0000')).getTime()
-      limitToLazyDay=new Date('1970-01-01T02:20:00+0000'),
+// ALMOST A JQUERY IMITATION (VERY ULTRA SLIM)
 
-      targetFrame=
-        document.
-        getElementById('mybcontainer_iframe').
-        contentDocument.
-        getElementById('principal').
-        contentDocument,
+      // RETURNS AN ELEMENT FROM WITHIN THE MAIN FRAME
+      $1=
+        (rules='')=>
+        {
+          return document.
+            getElementById('mybcontainer_iframe').
+            contentDocument.
+            getElementById('principal').
+            contentDocument.querySelector(rules.trim());
+        },
 
-      tableTitle=
-        targetFrame.
-        querySelector('table > tbody > tr:nth-of-type(1) > th:nth-of-type(1)'),
+      // RETURNS AN NODELIST FROM WITHIN THE MAIN FRAME
+      $n=
+        (rules='')=>
+        {
+          return document.
+            getElementById('mybcontainer_iframe').
+            contentDocument.
+            getElementById('principal').
+            contentDocument.querySelectorAll(rules.trim());
+        },
 
-      totalColumns=parseInt(tableTitle.getAttribute('colspan'),10),
+// DATE AND TIME SUPPORT FUNCTIONS
 
-      timeColumnPairs=(totalColumns-5)/2,
+      // CONVERTS A DATE TEXT FROM DD/MM/YY FORMAT TO YYYY-MM-DD
+      normalizeDate=
+        (date='')=>
+        {
+          if(date==='')
+          {
+            return '1970-01-01';
+          }
+          if(date.indexOf('/')>-1)
+          {
+            date=date.split('/').reverse();
+            if(date[0].length===2)
+            {
+              date[0]=`20${date[0]}`;
+            }
+            date=date.join('-')
+          }
+          return date;
+        },
 
-      newCellPosition=totalColumns-4,
+      // CONVERTS A TIME TEXT FROM HH:MM FORMAT TO HH:MM:SS
+      normalizeTime=
+        (time='')=>
+        {
+          if(time==='')
+          {
+            return '00:00:00';
+          }
+          time=time.replace(/\D+/g,'');
+          if(time.length!==4)
+          {
+            return '00:00:00';
+          }
+          return time.replace(/(\d{2})(\d{2})$/,'$1:$2:00');
+        },
 
+      // CONVERTS A TIME TO DATETIME WITH ZERO AS TIMEZONE
+      timeToDatetime=
+        time=>
+        {
+          return new Date(`1970-01-01T${time}+0000`);
+        },
+
+      // CONVERTS A TIME IN MILLISECONDS TO HH:MM FORMAT
+      millisecondsToHourMinute=
+        milliseconds=>
+        {
+          let
+            seconds=Math.floor(milliseconds/1000),
+            minutes=Math.floor(seconds/60),
+            hours=Math.floor(minutes/60);
+          minutes=minutes%60;
+          hours=hours.toString().padStart(2,'0');
+          minutes=minutes.toString().padStart(2,'0');
+          return `${hours}:${minutes}`;
+        },
+
+      // CONVERTS HOURS AND MINUTES OF A DATETIME TO INTEGER REPRESENTATION
+      hourMinuteFromDatetimeToInteger=
+        datetime=>
+        {
+          return parseInt(
+            datetime.
+              toISOString().
+              substring(11,16).
+              replace(':',''),
+              10
+          );
+        },
+
+// PROCEDURE FUNCTIONS (SOUNDS LIKE "PROCEDURE DIVISION" OF COBOL)
+
+      // ADD NEW RULES TO MAIN FRAME CSS
       addNewStyles=
         ()=>
         {
           const
-            newStyles=
-              targetFrame.head.appendChild(document.createElement('style'));
+            newStyles=$1('head').appendChild(document.createElement('style'));
           newStyles.innerHTML=
             'table tbody tr:hover{background:#ebebeb}'+
             'table tbody tr:nth-child(2n+1):hover{background:#e5e5e5}'+
-            '.lazy-day{color:#f00}';
+            '.out-of-bounds{color:#f00}';
         },
 
+      // ADD A BUTTON TO CALL THE TIME LIMIT RESET ROUTINE
+      addButtonToAdjustLimits=
+        ()=>
+        {
+          $1('#filterMarks').insertAdjacentHTML(
+            'beforeend',
+            '<input name="btnAjustaLimites" id="btnAjustaLimites" type="button" value="Ajusta Limites">'
+          );
+          $1('#btnAjustaLimites').addEventListener(
+            'click',
+            requestNewLimitsAndApply
+          );
+        },
+
+      // ROUTINE TO REQUIRE THE TWO NEW LIMITS AND APPLY TO THE SUMMARY COLUMN
+      requestNewLimitsAndApply=
+        ()=>
+        {
+
+          const
+
+            // VALIDATE AND TREAT THE LIMIT TIME FOR WEEKDAYS AND SATURDAYS
+            processTime=
+              (field='',time='')=>
+              {
+                field=field.trim();
+                if(field==='')
+                {
+                  return {
+                    error: true,
+                    message: 'Campo em análise não fornecido'
+                  };
+                }
+                time=time.replace(/[^\d\:]+/g,'');
+                if(time.trim()==='')
+                {
+                  return {
+                    error: true,
+                    message: `É necessário fornecer o limite de horas para os ${field}`
+                  };
+                }
+                if(time.length>5)
+                {
+                  time=time.substring(0,4);
+                }
+                time=time.split(':');
+                switch(time.length)
+                {
+                  case 1:
+                    time.push('0');
+                    break;
+                  case 2:
+                    break;
+                  default:
+                    return {
+                      error: true,
+                      message: `Limite de horas para ${field} fornecido está em formato incorreto`
+                    };
+                }
+                time=time.map(content=>parseInt(content,10));
+                if(time[0]===NaN || time[0]>11)
+                {
+                  return {
+                    error: true,
+                    message: `Horas fornecidas para o limite de horas para os ${field} precisa ser de 0 a 11`
+                  };
+                }
+                if(time[1]===NaN || time[1]>59)
+                {
+                  return {
+                    error: true,
+                    message: `Minutos fornecidos para o limite de horas para os ${field} precisa ser de 0 a 59`
+                  };
+                }
+                time=
+                  time.
+                  map(content=>content.toString().padStart(2,'0')).
+                  join(':');
+                return {
+                  error: false,
+                  date: `1970-01-01T${time}:00+0000`
+                };
+              };
+
+          let
+
+            newWeekdayHoursLimit,
+            newSaturdayHourslimit,
+            tmp;
+
+          newWeekdayHoursLimit=
+            prompt(
+              'Limite de horas para dias de semana (HH:MM)\nMáximo de 11:59',
+              hoursLimit.weekday.toISOString().substring(11,16)
+            );
+
+          if(newWeekdayHoursLimit===null)
+          {
+            return;
+          }
+
+          newSaturdayHourslimit=
+            prompt(
+              'Limite de horas para sábados (HH:MM)\nMáximo de 11:59',
+              hoursLimit.saturday.toISOString().substring(11,16)
+            );
+
+          if(newSaturdayHourslimit===null)
+          {
+            return;
+          }
+
+          tmp=
+            processTime(
+              'dias de semana',
+              newWeekdayHoursLimit
+            );
+          if(tmp.error)
+          {
+            alert(tmp.message);
+            return;
+          }
+          newWeekdayHoursLimit=tmp.date;
+
+          tmp=
+            processTime(
+              'sábados',
+              newSaturdayHourslimit
+            );
+          if(tmp.error)
+          {
+            alert(tmp.message);
+            return;
+          }
+          newSaturdayHourslimit=tmp.date;
+
+          hoursLimit=
+            {
+              weekday: new Date(newWeekdayHoursLimit),
+              saturday: new Date(newSaturdayHourslimit)
+            };
+
+          marksOutOfBoundsData();
+
+        },
+
+      // CHANGE TD SIZE WITH COLSPAN
       resizeTableTitle=
         ()=>
         {
           tableTitle.setAttribute('colspan',totalColumns+1);
         },
 
+      // INSERT THE NEW COLUMN WITH THE SUMMARY OF THE HOURS WORKED ON THE DAY
       addSumColumnToTable=
         ()=>
         {
 
-          const
-            textToTime=
-              text=>
-              {
-                return new Date('1970-01-01 '+text.replace(/\D+/g,'').replace(/(\d{2})(\d{2})$/,'$1:$2')+':00');
-              },
-            timeToText=
-              milliseconds=>
-              {
-                let
-                  seconds=Math.floor(milliseconds/1000),
-                  minutes=Math.floor(seconds/60),
-                  hours=Math.floor(minutes/60);
-                minutes=minutes%60;
-                return `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}`;
-              };
-
           let
+            dayOfWeek,
             totalTime,
+            totalTimeAsDatetime,
             html;
 
-          for(let tr of targetFrame.querySelectorAll('table > tbody > tr'))
+          for(let tr of $n('table > tbody > tr'))
           {
             switch(tr.rowIndex)
             {
@@ -80,6 +297,10 @@
                 tr.children[newCellPosition].insertAdjacentHTML('afterend','<th width="30">Total</th>');
                 continue;
               default:
+                dayOfWeek=normalizeDate(tr.children[0].textContent);
+                dayOfWeek+='T00:00:00+0000';
+                dayOfWeek=new Date(dayOfWeek);
+                dayOfWeek=dayOfWeek.getDay();
                 totalTime=0;
                 for(let i=0;i<timeColumnPairs;++i)
                 {
@@ -87,20 +308,33 @@
                   {
                     continue;
                   }
-                  totalTime+=textToTime(tr.children[(2*i)+3].textContent)-textToTime(tr.children[(2*i)+2].textContent);
+                  totalTime+=
+                    timeToDatetime(
+                      normalizeTime(tr.children[(2*i)+3].textContent)
+                    )-timeToDatetime(
+                      normalizeTime(tr.children[(2*i)+2].textContent)
+                    );
                 }
-                switch(true)
+                totalTimeAsDatetime=new Date(totalTime);
+                html='<td class="info-cent" data-time="';
+                if(totalTime===0)
                 {
-                  case (totalTime===0):
-                    html='<td class="info-cent">&nbsp;</td>';
-                    break;
-                  case (totalTime>0 && totalTime<limitToLazyDay):
-                    html='<td class="info-cent lazy-day">'+timeToText(totalTime)+'</td>';
-                    break;
-                  default:
-                    html='<td class="info-cent">'+timeToText(totalTime)+'</td>';
-                    break;
+                  html+='0';
                 }
+                else
+                {
+                  html+=hourMinuteFromDatetimeToInteger(totalTimeAsDatetime);
+                }
+                html+='" data-dow="'+dayOfWeek+'">';
+                if(totalTime===0)
+                {
+                  html+='&nbsp;';
+                }
+                else
+                {
+                  html+=millisecondsToHourMinute(totalTime);
+                }
+                html+='</td>';
                 tr.children[newCellPosition].insertAdjacentHTML('afterend',html);
                 break;
             }
@@ -108,438 +342,86 @@
 
         },
 
-      addButtonToExport=
+      // CHANGES THE COLOR OF HOURS THAT ARE BELOW THE SET LIMITS
+      marksOutOfBoundsData=
         ()=>
         {
-          targetFrame.
-            querySelector('#divSolicitacao > input[type="button"]:last-of-type').
-            insertAdjacentHTML('afterend','<input class="botoes" type="button" value="Exportar XLS" name="Exportar_XLS">');
-          targetFrame.
-            querySelector('#divSolicitacao > input[type="button"]:last-of-type').
-            addEventListener(
-              'click',
-              exportToExcel
-            );
-        },
 
-      exportToExcel=
-        ()=>
-        {
           const
-
-            normalizeDate=
-              (date='')=>
-              {
-                if(date==='')
-                {
-                  return '1970-01-01';
-                }
-                if(date.indexOf('/')>-1)
-                {
-                  date=date.split('/').reverse();
-                  if(date[0].length===2)
-                  {
-                    date[0]=`20${date[0]}`;
-                  }
-                  date=date.join('-')
-                }
-                return date;
-              },
-
-            normalizeTime=
-              (time='')=>
-              {
-                if(time==='')
-                {
-                  return '00:00:00';
-                }
-                time=time.replace(/\D+/g,'');
-                if(time.length!==4)
-                {
-                  return '00:00:00';
-                }
-                return time.replace(/(\d{2})(\d{2})$/,'$1:$2:00');
-              },
-
-            xml=
-              (
-
-                ()=>
-                {
-
-                  const
-
-                    template=
-                      '<?xml version="1.0" encoding="UTF-8"?>'+
-                      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">'+
-                        '<Styles>'+
-                          '<Style ss:ID="dptbr_bold"><NumberFormat ss:Format="DD/MM/YYYY"/><Font ss:Bold="1"/></Style>'+
-                          '<Style ss:ID="tptbr_bold"><NumberFormat ss:Format="HH:MM"/><Font ss:Bold="1"/></Style>'+
-                          '<Style ss:ID="sptbr_bold"><NumberFormat ss:Format="@"/><Font ss:Bold="1"/></Style>'+
-                          '<Style ss:ID="dptbr"><NumberFormat ss:Format="DD/MM/YYYY"/></Style>'+
-                          '<Style ss:ID="tptbr"><NumberFormat ss:Format="HH:MM"/></Style>'+
-                          '<Style ss:ID="sptbr"><NumberFormat ss:Format="@"/></Style>'+
-                        '</Styles>'+
-                        '<Worksheet ss:Name="{{WORKSHEETNAME}}">'+
-                          '<Table>'+
-                            '{{ROWS}}'+
-                          '</Table>'+
-                          '<ConditionalFormatting xmlns="urn:schemas-microsoft-com:office:excel">'+
-                            '<Range>G2:G29</Range>'+
-                            '<Condition>'+
-                              '<Qualifier>Less</Qualifier>'+
-                              '<Value1>05:20:00</Value1>'+
-                              '<Format Style="color:red"/>'+
-                            '</Condition>'+
-                          '</ConditionalFormatting>'+
-                        '</Worksheet>'+
-                      '</Workbook>',
-
-                    setWorksheetName=
-                      name=>
-                      {
-                        worksheetName=name;
-                      },
-
-                    newRow=
-                      ()=>
-                      {
-                        if(rowOpen)
-                        {
-                          tableContent.push('</Row>');
-                        }
-                        rowOpen=true;
-                        tableContent.push('<Row>');
-                      },
-
-                    writeData=
-                      params=>
-                      {
-                        let
-                          cell='<Cell';
-                        if(
-                          params.horizontalMerge &&
-                          parseInt(params.horizontalMerge,10)>0
-                        )
-                        {
-                          cell+=` ss:MergeAcross="${parseInt(params.horizontalMerge,10)}"`;
-                        }
-                        cell+=' ss:StyleID="';
-
-                        if(
-                          params.dataType &&
-                          typeof params.dataType==='string' &&
-                          params.dataType.length===1
-                        )
-                        {
-                          params.dataType=params.dataType.toLocaleLowerCase();
-                        }
-                        else
-                        {
-                          params.dataType='s';
-                        }
-
-                        if(params.content)
-                        {
-                          if(typeof params.content!=='string')
-                          {
-                            params.content=params.content.toString();
-                          }
-                        }
-                        else
-                        {
-                          params.content='';
-                        }
-
-                        switch(params.dataType)
-                        {
-                          case 'd':
-                            cell+='d';
-                            params.content=`${params.content}T00:00:00`;
-                            break;
-                          case 's':
-                            cell+='s';
-                            break;
-                          case 't':
-                            cell+='t';
-                            break;
-                        }
-
-                        cell+='ptbr';
-
-                        if(
-                          params.format &&
-                          params.format.bold &&
-                          typeof params.format.bold==='boolean' &&
-                          params.format.bold
-                        )
-                        {
-                          cell+='_bold';
-                        }
-                        cell+='"';
-
-                        if(params.formula)
-                        {
-                          if(typeof params.formula!=='string')
-                          {
-                            params.formula=params.formula.toString();
-                          }
-                        }
-                        else
-                        {
-                          params.formula='';
-                        }
-                        if(params.formula!=='')
-                        {
-                          cell+=` ss:Formula="${params.formula}"`;
-                        }
-
-                        cell+='><Data ss:Type="';
-                        switch(params.dataType)
-                        {
-                          case 'd':
-                          case 't':
-                            cell+='DateTime';
-                            break;
-                          case 's':
-                            cell+='String';
-                            break;
-                        }
-
-                        cell+=`">${params.content}</Data></Cell>`;
-
-                        tableContent.push(cell);
-                      },
-
-                    forceDownload=
-                      (root,filename)=>
-                      {
-                        if(rowOpen)
-                        {
-                          tableContent.push('</Row>');
-                        }
-                        const
-                          anchor=root.appendChild(document.createElement('a')),
-                          encodedSource=
-                            window.btoa(
-                              unescape( // DEPRECATED
-                                encodeURIComponent(
-                                  template.replace(
-                                    '{{WORKSHEETNAME}}',
-                                    worksheetName
-                                  ).replace(
-                                    '{{ROWS}}',
-                                    tableContent.join('')
-                                  )
-                                )
-                              )
-                            );
-                        anchor.setAttribute(
-                          'href',
-                          'data:application/vnd.ms-excel;charset=utf-8;base64,'+encodedSource
-                        );
-                        anchor.setAttribute('download',filename);
-                        anchor.click();
-                        anchor.remove();
-                      };
-
-                  let
-                    tableContent=[],
-                    worksheetName='Aba 1',
-                    rowOpen=false;
-
-                  return {
-                    setWorksheetName,
-                    newRow,
-                    writeData,
-                    forceDownload
-                  }
-
-                }
-
-              )();
-
+            cssNewCellPosition=newCellPosition+2,
+            hoursLimitWeekday=
+              hourMinuteFromDatetimeToInteger(hoursLimit.weekday),
+            hoursLimitSaturday=
+              hourMinuteFromDatetimeToInteger(hoursLimit.saturday);
           let
-            tmp,
-            tmpDate,
-            column,
-            formula=[];
-
-          xml.setWorksheetName('MARCAÇÕES');
-          xml.newRow();
-          xml.writeData(
-            {
-              content: tableTitle.textContent.trim(),
-              format:
-                {
-                  bold: true
-                },
-              horizontalMerge: totalColumns
-            }
-          );
-          xml.newRow();
-          xml.writeData(
-            {
-              content: 'DATA',
-              format:
-                {
-                  bold: true
-                }
-            }
-          );
-          xml.writeData(
-            {
-              content: 'DIA',
-              format:
-                {
-                  bold: true
-                }
-            }
-          );
-          for(let i=1,t=(totalColumns-5)/2;i<=t;++i)
+            classList,
+            timeAsInteger;
+          for(let td of $n(`table > tbody > tr > td:nth-of-type(${cssNewCellPosition})`))
           {
-            xml.writeData(
-              {
-                content: `${i}a E.`,
-                format:
-                  {
-                    bold: true
-                  }
-              }
-            );
-            xml.writeData(
-              {
-                content: `${i}a S.`,
-                format:
-                  {
-                    bold: true
-                  }
-              }
-            );
-          }
-          xml.writeData(
-            {
-              content: 'TOTAL',
-              format:
-                {
-                  bold: true
-                }
-            }
-          );
-          xml.writeData(
-            {
-              content: 'OBSERVAÇÕES',
-              format:
-                {
-                  bold: true
-                }
-            }
-          );
-          xml.writeData(
-            {
-              content: 'MOT. ABONO',
-              format:
-                {
-                  bold: true
-                }
-            }
-          );
-          xml.writeData(
-            {
-              content: 'TIPO MARCAÇÃO',
-              format:
-                {
-                  bold: true
-                }
-            }
-          );
-          for(let i=(totalColumns-5)/2;i>0;--i)
-          {
-            formula.push('(RC[-'+((i*2)-1)+']-RC[-'+(i*2)+'])');
-          }
-          formula='='+formula.join('+');
-          for(let tr of targetFrame.querySelectorAll('table > tbody > tr'))
-          {
-            if(tr.rowIndex<2)
+            if(td.parentElement.rowIndex<2)
             {
               continue;
             }
-            xml.newRow();
-            tmpDate=normalizeDate(tr.children[0].textContent);
-            xml.writeData(
-              {
-                content: tmpDate,
-                dataType: 'd'
-              }
-            );
-            xml.writeData(
-              {
-                content: tr.children[1].textContent.trim().toUpperCase()
-              }
-            );
-            for(let i=2,t=totalColumns-3;i<t;++i)
+            timeAsInteger=parseInt(td.getAttribute('data-time'),10);
+            classList=['info-cent'];
+            if(
+              timeAsInteger>0 &&
+              (
+                (
+                  td.getAttribute('data-dow')!=='5' &&
+                  timeAsInteger<hoursLimitWeekday
+                )
+                ||
+                (
+                  td.getAttribute('data-dow')==='5' &&
+                  timeAsInteger<hoursLimitSaturday
+                )
+              )
+            )
             {
-              tmp=normalizeTime(tr.children[i].textContent);
-              xml.writeData(
-                {
-                  content: `${tmpDate}T${tmp}`,
-                  dataType: 't'
-                }
-              );
+              classList.push('out-of-bounds');
             }
-            xml.writeData(
-              {
-                formula: formula,
-                dataType: 't'
-              }
-            );
-            column=totalColumns-2;
-            xml.writeData(
-              {
-                content: tr.children[column].textContent.replaceAll('*','').trim().toUpperCase()
-              }
-            );
-            xml.writeData(
-              {
-                content: tr.children[++column].textContent.trim().toUpperCase()
-              }
-            );
-            tmp=normalizeTime(tr.children[++column].textContent);
-            xml.writeData(
-              {
-                content: `${tmpDate}T${tmp}`,
-                dataType: 't'
-              }
-            );
+            td.setAttribute('class',classList.join(' '));
           }
-          xml.forceDownload(
-            targetFrame.getElementById('divSolicitacao'),
-            targetFrame.
-              querySelector('#divCabecalho > fieldset > .container-cabec:nth-of-type(2) > .div-conteudo').
-              textContent+
-              ' - '+
-              targetFrame.
-              querySelector('table > tbody > tr:nth-of-type(1) > th:nth-of-type(1)').
-              textContent+
-              '.xls'
-          );
 
+        },
+
+      tableTitle=$1('table > tbody > tr:nth-of-type(1) > th:nth-of-type(1)'),
+
+      totalColumns=parseInt(tableTitle.getAttribute('colspan'),10),
+
+      timeColumnPairs=(totalColumns-5)/2,
+
+      newCellPosition=totalColumns-4;
+
+    let
+
+      hoursLimit=
+        {
+          weekday: new Date('1970-01-01T05:30:00+0000'),
+          saturday: new Date('1970-01-01T03:00:00+0000')
         };
 
-    if(targetFrame.querySelector('body').hasAttribute('improved'))
+// INHIBIT MORE THAN ONE EXECUTION
+
+    if($1('body').hasAttribute('improved'))
     {
       return;
     }
 
+// RUN, FORREST, RUN!
+
     addNewStyles();
+
+    addButtonToAdjustLimits();
 
     resizeTableTitle();
 
     addSumColumnToTable();
 
-    addButtonToExport();
+    marksOutOfBoundsData();
 
-    targetFrame.querySelector('body').setAttribute('improved','yep');
+    $1('body').setAttribute('improved','yep');
 
   }
 
