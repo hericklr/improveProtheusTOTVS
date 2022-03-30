@@ -1,5 +1,16 @@
 # Change log
 
+## [1.3.0] - 2022-03-30
+
+### Added
+
+- Creation of a label to display the established limits
+- Creation of a column to display the difference between the total hours worked and the established limit
+
+### Changed
+
+- Segmentation and creation of functions aiming better organization and code reuse
+
 ## [1.2.0] - 2022-03-24
 
 ### Added
@@ -12,7 +23,7 @@
 
 ### Removed
 
-- Button and routine for exporting the data grid in XML format
+- Button and routine for exporting the data grid in XLS format
 
 ## [1.1.0] - 2022-03-16
 
@@ -22,11 +33,22 @@ First release
 
 - Support the creation of a new column with a summary of hours worked by line, with hours below the limit being marked
 - Under-mouse line highlight support for easier reading
-- Creation of a button and routine for exporting the data grid in XML format
+- Creation of a button and routine for exporting the data grid in XLS format
 
 ---
 
 # Registro de alterações
+
+## [1.3.0] - 30/03/2022
+
+### Adicionado
+
+- Criação de um rótulo para exibir os limites estabelecidos
+- Criação de uma coluna para exibição da diferença entre o total de horas trabalhadas e o limite estabelecido
+
+### Alterado
+
+- Segmentação e criação de funções visando melhor organização e reaproveitamento de código
 
 ## [1.2.0] - 24/03/2022
 
@@ -40,7 +62,7 @@ First release
 
 ### Removido
 
-- Botão e rotina para exportação da grade de dados no formato XML
+- Botão e rotina para exportação da grade de dados no formato XLS
 
 ## [1.1.0] - 16/03/2022
 
@@ -50,4 +72,4 @@ Primeiro lançamento
 
 - Suporte a criação de uma nova coluna com a sumarização das horas trabalhadas por linha, sendo que as horas abaixo do limite são marcadas
 - Suporte à realce da linha sob o mouse para facilitar a leitura
-- Criação de um botão e rotina para exportação da grade de dados no formato XML
+- Criação de um botão e rotina para exportação da grade de dados no formato XLS
